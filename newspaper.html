@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI SEC FEED // AIsennin</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;700&display=swap');
+
+  :root {
+    --green:   #00ff41;
+    --green2:  #00cc33;
+    --green3:  #008f11;
+    --cyan:    #00f5ff;
+    --yellow:  #ffe600;
+    --orange:  #ff8c00;
+    --red:     #ff2222;
+    --magenta: #ff00aa;
+    --bg:      #020c02;
+    --bg2:     #050f05;
+    --bg3:     #0a1a0a;
+    --border:  #0d3d0d;
+    --text:    #8bbc8b;
+    --dim:     #3a5c3a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── scanline overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.12) 2px,
+      rgba(0,0,0,0.12) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── matrix rain bg ── */
+  #matrix-bg {
+    position: fixed; inset: 0;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 16px 60px;
+  }
+
+  /* ════ HEADER ════════════════════════════════════════════════ */
+  header {
+    border-bottom: 2px solid var(--green3);
+    padding: 32px 0 20px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(28px, 5vw, 56px);
+    font-weight: 900;
+    color: var(--green);
+    letter-spacing: 6px;
+    text-shadow: 0 0 20px var(--green), 0 0 60px var(--green3);
+    line-height: 1;
+  }
+
+  .logo span {
+    color: var(--cyan);
+    text-shadow: 0 0 20px var(--cyan);
+  }
+
+  .header-meta {
+    text-align: right;
+    font-size: 11px;
+    color: var(--dim);
+    line-height: 1.8;
+  }
+
+  .header-meta .live {
+    color: var(--green);
+    font-size: 12px;
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    margin-right: 5px;
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.3; transform: scale(0.7); }
+  }
+
+  .header-tagline {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .header-tagline span { color: var(--green3); }
+  .header-tagline b   { color: var(--cyan); font-weight: normal; }
+
+  /* ════ STATUS BAR ════════════════════════════════════════════ */
+  .status-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+    font-size: 11px;
+  }
+
+  .status-pill {
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 2px;
+    color: var(--dim);
+    background: var(--bg2);
+  }
+
+  .status-pill b { margin-right: 4px; }
+  .status-pill.green b { color: var(--green); }
+  .status-pill.cyan  b { color: var(--cyan); }
+  .status-pill.yellow b { color: var(--yellow); }
+  .status-pill.orange b { color: var(--orange); }
+  .status-pill.red   b { color: var(--red); }
+
+  /* ════ GRID ══════════════════════════════════════════════════ */
+  .news-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 16px;
+  }
+
+  .card:first-child {
+    grid-column: 1 / -1;   /* hero spans full width */
+  }
+
+  /* ════ CARD ══════════════════════════════════════════════════ */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    transition: border-color .25s, box-shadow .25s;
+  }
+
+  .card:hover {
+    border-color: var(--green3);
+    box-shadow: 0 0 24px rgba(0,255,65,0.08), inset 0 0 40px rgba(0,255,65,0.02);
+  }
+
+  /* corner brackets */
+  .card::before, .card::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    border-color: var(--green3);
+    border-style: solid;
+    transition: border-color .25s;
+  }
+  .card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .card::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+  .card:hover::before, .card:hover::after { border-color: var(--green); }
+
+  .card-inner { padding: 22px 24px 20px; }
+
+  /* ── threat banner ── */
+  .threat-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .threat-badge {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    border-radius: 2px;
+  }
+
+  .threat-CRITICAL { background: rgba(255,34,34,.15);  color: var(--red);     border: 1px solid var(--red);     text-shadow: 0 0 8px var(--red); }
+  .threat-HIGH     { background: rgba(255,140,0,.12);  color: var(--orange);  border: 1px solid var(--orange);  text-shadow: 0 0 8px var(--orange); }
+  .threat-MEDIUM   { background: rgba(255,230,0,.10);  color: var(--yellow);  border: 1px solid var(--yellow);  text-shadow: 0 0 8px var(--yellow); }
+  .threat-LOW      { background: rgba(0,255,65,.08);   color: var(--green);   border: 1px solid var(--green2);  }
+  .threat-INFO     { background: rgba(0,245,255,.08);  color: var(--cyan);    border: 1px solid var(--cyan);    }
+
+  .tag-chip {
+    font-size: 10px;
+    color: var(--cyan);
+    border: 1px solid rgba(0,245,255,.25);
+    padding: 2px 8px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .alert-id {
+    font-size: 10px;
+    color: var(--dim);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  /* ── title ── */
+  .card-title {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #cce8cc;
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+
+  .card:first-child .card-title {
+    font-size: 22px;
+  }
+
+  /* ── divider ── */
+  .card-divider {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 12px 0;
+  }
+
+  /* ── body ── */
+  .card-body {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--text);
+    line-height: 1.8;
+    margin-bottom: 16px;
+  }
+
+  /* ── meta strip ── */
+  .card-meta {
+    font-size: 10px;
+    color: var(--dim);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  .meta-key  { color: var(--green3); letter-spacing: 1px; white-space: nowrap; }
+  .meta-val  { color: var(--dim); word-break: break-word; }
+  .meta-val.mitre  { color: var(--yellow); }
+  .meta-val.ioc    { color: var(--orange); }
+  .meta-val.src    { color: var(--green2); }
+  .meta-val.date   { color: var(--dim); }
+
+  /* ── glitch animation on hero ── */
+  .card:first-child .card-title {
+    animation: glitch-subtle 8s infinite;
+  }
+
+  @keyframes glitch-subtle {
+    0%, 94%, 100% { text-shadow: none; transform: none; }
+    95%  { text-shadow: -2px 0 var(--cyan); transform: translate(1px,0); }
+    96%  { text-shadow:  2px 0 var(--red);  transform: translate(-1px,0); }
+    97%  { text-shadow: none; transform: none; }
+  }
+
+  /* ════ FOOTER ════════════════════════════════════════════════ */
+  footer {
+    margin-top: 36px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    font-size: 10px;
+    color: var(--dim);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    letter-spacing: 1px;
+  }
+
+  footer a { color: var(--green3); text-decoration: none; }
+
+  /* ════ MATRIX RAIN (canvas) ══════════════════════════════════ */
+</style>
+</head>
+<body>
+
+<canvas id="matrix-bg"></canvas>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-top">
+      <div class="logo">AI<span>SEC</span> FEED</div>
+      <div class="header-meta">
+        <div class="live"><span class="live-dot"></span>LIVE FEED</div>
+        <div id="clock"></div>
+        <div>TLP: WHITE &nbsp;|&nbsp; SESSION: <span id="session-id"></span></div>
+      </div>
+    </div>
+    <div class="header-tagline">
+      <span>PRODUCT: <b>AIsennin v1.0</b></span>
+      <span>PROTO: <b>v2.1.4</b></span>
+      <span>ENC: <b>AES-256</b></span>
+      <span>CLASSIFICATION: <b>UNCLASSIFIED // TLP:WHITE</b></span>
+    </div>
+  </header>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-pill green"><b>● FEED</b>LIVE</div>
+    <div class="status-pill red"><b>● CRITICAL</b>1件</div>
+    <div class="status-pill orange"><b>▲ HIGH</b>1件</div>
+    <div class="status-pill yellow"><b>◆ MEDIUM</b>1件</div>
+    <div class="status-pill cyan"><b>ALERTS</b>3件配信中</div>
+  </div>
+
+  <!-- NEWS GRID -->
+  <div class="news-grid">
+
+    <!-- CARD 1: CRITICAL (hero) -->
+    <article class="card">
+      <div class="card-inner">
+        <div class="threat-banner">
+          <span class="threat-badge threat-CRITICAL">● CRITICAL</span>
+          <span class="tag-chip">SUPPLY CHAIN · MLOps</span>
+          <span class="alert-id">AISEC-2026-0531-002</span>
+        </div>
+        <h2 class="card-title">HuggingFace Hub で悪意あるPickleモデルが配布――推定8,000件以上ダウンロード、RCE確認</h2>
+        <hr class="card-divider">
+        <p class="card-body">
+          HuggingFace公式リポジトリにて、正規モデルに偽装したPickle形式の悪意あるファイルが複数検出された。
+          ロード時にリバースシェルを生成するコードが埋め込まれており、ML開発者の環境に直接侵入できる。
+          safetensors形式への移行と <code>picklescan</code> による静的解析が強く推奨される。
+          影響を受けたモデルIDはAdvisory参照。バックドア経由のクレデンシャル窃取も確認されている。
+        </p>
+        <div class="card-meta">
+          <span class="meta-key">MITRE</span><span class="meta-val mitre">AML.T0010</span>
+          <span class="meta-key">IOC</span><span class="meta-val ioc">pickle deserialization RCE / HuggingFace repo: [REDACTED]</span>
+          <span class="meta-key">SRC</span><span class="meta-val src">HF Security Bulletin HF-SEC-2026-88</span>
+          <span class="meta-key">DATE</span><span class="meta-val date">2026-05-29 23:51 UTC</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CARD 2: HIGH -->
+    <article class="card">
+      <div class="card-inner">
+        <div class="threat-banner">
+          <span class="threat-badge threat-HIGH">▲ HIGH</span>
+          <span class="tag-chip">ADVERSARIAL · LLM</span>
+          <span class="alert-id">AISEC-2026-0531-001</span>
+        </div>
+        <h2 class="card-title">GPT-5 Jailbreak手法「ShadowPrompt v3」公開――FewShot注入でガードレール突破率67%</h2>
+        <hr class="card-divider">
+        <p class="card-body">
+          研究グループ Redacted Labs が Few-Shot例示をシステムプロンプト境界付近に埋め込む新型プロンプトインジェクションを公開。
+          RAGパイプライン経由の二次汚染にも注意が必要。OpenAIはパッチ対応中。
+        </p>
+        <div class="card-meta">
+          <span class="meta-key">MITRE</span><span class="meta-val mitre">AML.T0054.002</span>
+          <span class="meta-key">IOC</span><span class="meta-val ioc">system_prompt injection / few-shot poisoning</span>
+          <span class="meta-key">SRC</span><span class="meta-val src">Redacted Labs Advisory RL-2026-319</span>
+          <span class="meta-key">DATE</span><span class="meta-val date">2026-05-30 09:14 UTC</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CARD 3: MEDIUM -->
+    <article class="card">
+      <div class="card-inner">
+        <div class="threat-banner">
+          <span class="threat-badge threat-MEDIUM">◆ MEDIUM</span>
+          <span class="tag-chip">POLICY · GOVERNANCE</span>
+          <span class="alert-id">AISEC-2026-0531-003</span>
+        </div>
+        <h2 class="card-title">日本「AI安全確保法」閣議決定――高リスクAIに第三者監査義務・罰則最大1億円</h2>
+        <hr class="card-divider">
+        <p class="card-body">
+          医療・金融・重要インフラ分野のAIに対し、レッドチーム試験・インシデント報告・モデルカード開示が義務化。
+          違反企業には最大1億円の行政罰。IPAがセキュリティ評価フレームワークを策定主導。2027年4月施行予定。
+        </p>
+        <div class="card-meta">
+          <span class="meta-key">MITRE</span><span class="meta-val mitre">N/A</span>
+          <span class="meta-key">IOC</span><span class="meta-val ioc">N/A</span>
+          <span class="meta-key">SRC</span><span class="meta-val src">内閣府 AI政策室 Press Release 2026-05-28</span>
+          <span class="meta-key">DATE</span><span class="meta-val date">2026-05-28 10:00 JST</span>
+        </div>
+      </div>
+    </article>
+
+  </div><!-- /news-grid -->
+
+  <footer>
+    <span>© 2026 AIsennin SecOps Feed &nbsp;·&nbsp; TLP:WHITE &nbsp;·&nbsp; Redistribution permitted with attribution</span>
+    <span>POWERED BY <a href="#">AIsennin</a></span>
+  </footer>
+
+</div><!-- /wrap -->
+
+<script>
+// ── Clock ──────────────────────────────────────────────────────
+function tick() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.toISOString().replace('T',' ').slice(0,19) + ' UTC';
+}
+tick(); setInterval(tick, 1000);
+
+// ── Session ID ─────────────────────────────────────────────────
+document.getElementById('session-id').textContent =
+  '0x' + Math.floor(Math.random()*0xFFFF).toString(16).toUpperCase().padStart(4,'0');
+
+// ── Matrix rain ────────────────────────────────────────────────
+const canvas = document.getElementById('matrix-bg');
+const ctx    = canvas.getContext('2d');
+const CHARS  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789アイウエオカキクケコ01';
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const COL_W = 16;
+let cols = [];
+function initCols() {
+  cols = Array.from({ length: Math.ceil(canvas.width / COL_W) },
+    () => Math.random() * -canvas.height);
+}
+initCols();
+window.addEventListener('resize', initCols);
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(2,12,2,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff41';
+  ctx.font = '13px Share Tech Mono, monospace';
+  cols.forEach((y, i) => {
+    const ch = CHARS[Math.floor(Math.random() * CHARS.length)];
+    ctx.fillText(ch, i * COL_W, y);
+    cols[i] = y > canvas.height + Math.random() * 1000 ? 0 : y + COL_W;
+  });
+}
+setInterval(drawMatrix, 50);
+</script>
+</body>
+</html>
