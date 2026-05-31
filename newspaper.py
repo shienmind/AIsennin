@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """AI SECURITY FEED - Cyberpunk terminal newspaper for AI security engineers"""
 
 import time
